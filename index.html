@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2e75b6">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/app.css">
+<title>Plan de prise</title>
+</head>
+<body>
+
+<header class="bar">
+  <button class="bar-btn" id="btn-home" aria-label="Accueil">⌂</button>
+  <h1 id="title">Plan de prise</h1>
+  <button class="bar-btn" id="btn-table" aria-label="Table de correspondance">☰</button>
+  <button class="bar-btn" id="btn-about" aria-label="À propos">ⓘ</button>
+</header>
+
+<main>
+
+  <!-- ACCUEIL -->
+  <section data-view="home">
+    <div class="card hero">
+      <p class="lead">Photographiez une ou plusieurs ordonnances imprimées : le plan de prise est prérempli, sans aucun nom de patient.</p>
+      <button class="btn primary big" id="btn-camera">📷 Photographier une ordonnance</button>
+      <label class="btn big ghost" for="file-input">🖼 Choisir une photo existante</label>
+      <input type="file" id="file-input" accept="image/*" hidden>
+      <p class="hint">Préférez l’appareil photo ci-dessus : une photo prise ici n’est pas enregistrée dans la galerie.</p>
+    </div>
+    <div class="card" id="home-resume" hidden>
+      <p><strong id="home-count"></strong></p>
+      <button class="btn primary" id="btn-resume">Reprendre le plan en cours</button>
+    </div>
+    <div class="card status" id="home-status">
+      <p id="status-text">Chargement…</p>
+    </div>
+    <p class="legal">Ce document n’est pas une ordonnance. Le plan préremplit : il ne remplace ni la relecture ni la validation pharmaceutique. Aucune photo ni donnée patient n’est conservée.</p>
+  </section>
+
+  <!-- CAMÉRA -->
+  <section data-view="camera" hidden>
+    <div class="cam">
+      <video id="video" playsinline muted autoplay></video>
+      <p class="cam-hint">Cadrez l’ordonnance entière, bien éclairée, à plat.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="cam-cancel">Annuler</button>
+      <button class="btn primary big" id="cam-shoot">Prendre la photo</button>
+    </div>
+    <p class="hint center" id="cam-error" hidden></p>
+  </section>
+
+  <!-- RECADRAGE -->
+  <section data-view="crop" hidden>
+    <p class="hint" id="crop-hint">Ajustez le cadre autour des médicaments prescrits (sans l’en-tête patient).</p>
+    <div class="cropwrap"><canvas id="crop-canvas"></canvas></div>
+    <div class="actions wrap">
+      <button class="btn" id="crop-rotate">↻ Pivoter</button>
+      <button class="btn" id="crop-auto">Zone auto</button>
+      <button class="btn" id="crop-all">Page entière</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="crop-cancel">Annuler</button>
+      <button class="btn primary big" id="crop-go">Lire cette zone</button>
+    </div>
+  </section>
+
+  <!-- TRAVAIL EN COURS -->
+  <section data-view="working" hidden>
+    <div class="card center">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="work-text">Lecture en cours…</p>
+      <progress id="work-bar" max="1" value="0"></progress>
+    </div>
+  </section>
+
+  <!-- VÉRIFICATION -->
+  <section data-view="review" hidden>
+    <div class="card note">
+      <p>Vérifiez chaque ligne avec l’ordonnance, corrigez au besoin, puis cochez <strong>Vérifié</strong>. L’identité du patient n’est jamais lue.</p>
+    </div>
+    <div id="remarks" class="card remark" hidden></div>
+    <div id="cards"></div>
+    <div class="actions wrap">
+      <button class="btn" id="rev-camera">📷 Autre ordonnance</button>
+      <button class="btn" id="rev-add">＋ Ajouter un médicament</button>
+    </div>
+    <div class="sticky">
+      <p id="rev-status" class="hint center"></p>
+      <button class="btn primary big" id="rev-generate" disabled>Générer le plan de prise</button>
+    </div>
+  </section>
+
+  <!-- RÉSULTAT -->
+  <section data-view="result" hidden>
+    <div class="card center">
+      <p class="ok">✔ Plan de prise prêt</p>
+      <p id="res-name" class="hint"></p>
+      <button class="btn primary big" id="res-share">Envoyer par e-mail / partager</button>
+      <button class="btn" id="res-download">Enregistrer le fichier</button>
+    </div>
+    <div class="card note">
+      <p>Le fichier Word est anonyme : complétez nom, prénom et date de naissance sur le PC. Envoyez-le uniquement par la messagerie hospitalière ou MSSanté, puis supprimez-le du téléphone.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="res-back">Revenir au plan</button>
+      <button class="btn danger" id="res-end">Terminer et effacer</button>
+    </div>
+  </section>
+
+  <!-- TABLE DE CORRESPONDANCE -->
+  <section data-view="table" hidden>
+    <div class="card">
+      <input type="search" id="tab-search" placeholder="Rechercher un médicament…" autocomplete="off">
+      <p class="hint" id="tab-count"></p>
+    </div>
+    <div id="tab-list"></div>
+    <div class="actions wrap">
+      <button class="btn" id="tab-export">⬇ Exporter (CSV)</button>
+      <label class="btn" for="tab-import-input">⬆ Importer (CSV)</label>
+      <input type="file" id="tab-import-input" accept=".csv,text/csv" hidden>
+      <button class="btn" id="tab-seed">Ajouter les entrées de départ</button>
+    </div>
+  </section>
+
+  <!-- À PROPOS -->
+  <section data-view="about" hidden>
+    <div class="card">
+      <h2>Fonctionnement</h2>
+      <p>Tout se passe sur ce téléphone : lecture de l’image (OCR), rapprochement avec la base publique des médicaments (BDPM) et génération du Word. Aucune donnée n’est envoyée sur Internet.</p>
+      <p>Seule la <strong>table de correspondance</strong> (utilité et conseil par médicament) est conservée, sans aucune donnée de patient.</p>
+    </div>
+    <div class="card" id="about-info"></div>
+    <div class="actions wrap">
+      <button class="btn" id="about-update">Rechercher une mise à jour</button>
+    </div>
+    <p class="legal">Outil d’aide à la rédaction. Il ne remplace ni la relecture ni la validation pharmaceutique.</p>
+  </section>
+
+</main>
+
+<!-- Modification d'une entrée de la table -->
+<dialog id="dlg-entry">
+  <form method="dialog" id="entry-form">
+    <h2 id="entry-title">Entrée</h2>
+    <label>Marque <input name="marque"></label>
+    <label>Substance(s) <input name="dci"></label>
+    <label>À quoi sert le traitement <input name="utilite"></label>
+    <label>Conseil de prise <small>(plusieurs conseils séparés par « ; »)</small> <input name="conseil"></label>
+    <label>Posologie par défaut <small>(si l’ordonnance n’en donne pas)</small> <input name="posologie_defaut" placeholder="ex. 1 comprimé le soir"></label>
+    <label>Catégorie par défaut
+      <select name="categorie_defaut"><option value="">—</option><option value="quotidien">Tous les jours</option><option value="besoin">Si besoin</option><option value="autre">Autre fréquence</option></select>
+    </label>
+    <div class="actions">
+      <button class="btn danger" value="delete" type="submit">Supprimer</button>
+      <button class="btn" value="cancel" type="submit">Annuler</button>
+      <button class="btn primary" value="save" type="submit">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Ajout manuel d'un médicament -->
+<dialog id="dlg-add">
+  <form method="dialog" id="add-form">
+    <h2>Ajouter un médicament</h2>
+    <label>Nom et dosage <input name="nom" placeholder="ex. Doliprane 500 mg" autocomplete="off" required></label>
+    <div class="actions">
+      <button class="btn" value="cancel" type="submit" formnovalidate>Annuler</button>
+      <button class="btn primary" value="add" type="submit">Ajouter</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="vendor/pizzip.min.js"></script>
+<script src="vendor/docxtemplater.min.js"></script>
+<script src="vendor/tesseract/tesseract.min.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/core.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
