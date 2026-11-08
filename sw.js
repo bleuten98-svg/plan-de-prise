@@ -1,10 +1,10 @@
 /* Service worker : mise en cache de l'application pour un usage hors ligne.
  * Ne met JAMAIS en cache de donnée patient (aucune n'est jamais envoyée ni stockée). */
-const VERSION = 'ordo-0.1.0';
+const VERSION = 'ordo-0.2.0';
 const PRECACHE = [
-  './', 'index.html', 'css/app.css', 'js/app.js', 'js/core.js', 'js/engine.js', 'manifest.webmanifest',
+  './', 'index.html', 'css/app.css', 'js/app.js', 'js/core.js', 'js/engine.js', 'js/analyse.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',
-  'data/bdpm_light.json', 'data/connaissances_depart.csv', 'modele/Modele_plan_de_prise.docx',
+  'data/bdpm_light.json', 'data/connaissances_depart.csv', 'data/thesaurus_interactions.json', 'modele/Modele_plan_de_prise.docx',
   'vendor/pizzip.min.js', 'vendor/docxtemplater.min.js',
   'vendor/tesseract/tesseract.min.js', 'vendor/tesseract/worker.min.js', 'vendor/tessdata/fra.traineddata',
 ];

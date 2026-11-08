@@ -103,3 +103,17 @@ dialog label { display: block; font-size: .85rem; color: var(--muted); margin: 1
 dialog small { font-weight: 400; }
 
 #toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); transform: translateX(-50%); background: #222; color: #fff; padding: 10px 16px; border-radius: 20px; z-index: 50; max-width: 90vw; font-size: .9rem; }
+
+/* analyse pharmaceutique */
+.card.analyse { border-left: 6px solid var(--blue); }
+.card.analyse.is-clear { border-left-color: var(--green); }
+.card.analyse.is-alert { border-left-color: var(--red); }
+.an-ok { color: var(--green); font-weight: 600; }
+.alert { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 8px 0; background: var(--orange-bg); }
+.alert.ci { background: #fdecec; border-color: #efb8b8; }
+.alert .lvl { display: inline-block; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; color: var(--orange); }
+.alert.ci .lvl { color: var(--red); }
+.alert .pair { margin: 4px 0 2px; }
+.alert .txt { white-space: pre-line; font-size: .9rem; margin: 6px 0 0; }
+.alert details summary { cursor: pointer; color: var(--blue-dark); font-size: .9rem; }
+.alert .check { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: .9rem; }

@@ -85,6 +85,7 @@
     </div>
     <div id="remarks" class="card remark" hidden></div>
     <div id="cards"></div>
+    <div id="analyse" class="card analyse" hidden></div>
     <div class="actions wrap">
       <button class="btn" id="rev-camera">📷 Autre ordonnance</button>
       <button class="btn" id="rev-add">＋ Ajouter un médicament</button>
@@ -132,6 +133,7 @@
     <div class="card">
       <h2>Fonctionnement</h2>
       <p>Tout se passe sur ce téléphone : lecture de l’image (OCR), rapprochement avec la base publique des médicaments (BDPM) et génération du Word. Aucune donnée n’est envoyée sur Internet.</p>
+      <p>Après la validation des médicaments, une <strong>analyse pharmaceutique</strong> recherche les contre-indications et associations déconseillées du Thésaurus ANSM des interactions médicamenteuses (septembre 2023). Les alertes retenues sont reportées dans le compte rendu pharmaceutique (page 2).</p>
       <p>Seule la <strong>table de correspondance</strong> (utilité et conseil par médicament) est conservée, sans aucune donnée de patient.</p>
     </div>
     <div class="card" id="about-info"></div>
@@ -182,6 +184,7 @@
 <script src="vendor/tesseract/tesseract.min.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/core.js"></script>
+<script src="js/analyse.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

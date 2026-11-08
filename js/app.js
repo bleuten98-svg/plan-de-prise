@@ -2,9 +2,10 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '0.1.0';
+  const APP_VERSION = '0.2.0';
   const E = window.OrdoEngine;
   const C = window.OrdoCore;
+  const AN = window.OrdoAnalyse;
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -14,6 +15,7 @@
     idx: null, table: E.newTable(), items: [], remarks: [], pages: 0,
     worker: null, workerPromise: null, cur: null, offlineReady: false, ready: false,
     stream: null, view: 'home', lastBlob: null, lastName: '',
+    base: null, alerts: [], alertsOff: new Set(),
   };
   let uidn = 0;
   const uid = () => 'm' + ++uidn;
@@ -77,10 +79,18 @@
       }
       S.ready = true;
       updateStatus();
+      loadThesaurus();
     } catch (e) {
       setStatus('Erreur au chargement de la base des médicaments. Rechargez la page.');
     }
     warmUp();
+  }
+  async function loadThesaurus() {
+    try {
+      const r = await fetch('data/thesaurus_interactions.json');
+      S.base = AN.createBase(await r.json());
+      if (S.view === 'review') renderAnalyse();
+    } catch (e) { S.base = null; }
   }
   function updateStatus(extra) {
     const parts = [];
@@ -390,6 +400,49 @@
     const n = S.items.length, ok = S.items.filter((i) => i.verifie).length;
     $('#rev-status').textContent = n ? `${ok} / ${n} ligne${n > 1 ? 's' : ''} vérifiée${ok > 1 ? 's' : ''}` : 'Ajoutez un médicament ou une autre ordonnance.';
     $('#rev-generate').disabled = !(n > 0 && ok === n);
+    renderAnalyse();
+  }
+
+  /* ------------------------------------------------------------------ analyse pharmaceutique (Thésaurus ANSM) */
+  function renderAnalyse() {
+    const box = $('#analyse');
+    if (!box) return;
+    if (!S.items.length) { box.hidden = true; S.alerts = []; return; }
+    box.hidden = false;
+    if (!S.base) { box.innerHTML = '<h2>Analyse pharmaceutique</h2><p class="hint">Thésaurus des interactions en cours de chargement…</p>'; return; }
+    const valides = S.items.filter((i) => i.verifie);
+    const n = S.items.length;
+    S.alerts = valides.length > 1 ? AN.analyse(S.base, valides) : [];
+    const head = `<h2>Analyse pharmaceutique</h2>
+      <p class="hint">Contre-indications et associations déconseillées du Thésaurus ANSM (sept. 2023), entre les médicaments validés (${valides.length} / ${n}).</p>`;
+    if (valides.length < 2) {
+      box.className = 'card analyse';
+      box.innerHTML = head + '<p class="hint">L’analyse se fait au fur et à mesure que vous cochez « Vérifié ».</p>';
+      return;
+    }
+    if (!S.alerts.length) {
+      box.className = 'card analyse is-clear';
+      box.innerHTML = head + '<p class="an-ok">Aucune contre-indication ni association déconseillée trouvée.</p>'
+        + '<p class="hint">Les précautions d’emploi et interactions « à prendre en compte » ne sont pas recherchées. Le thésaurus ne remplace pas le RCP.</p>';
+      return;
+    }
+    box.className = 'card analyse is-alert';
+    const lab = (it) => esc([it.nom, it.dci].filter(Boolean).join(' '));
+    const cap = (s) => esc(s.charAt(0) + s.slice(1).toLowerCase());
+    box.innerHTML = head + `<p><strong>${S.alerts.length} alerte${S.alerts.length > 1 ? 's' : ''}</strong> — reprises automatiquement dans le compte rendu (page 2) :</p>`
+      + S.alerts.map((f) => `<div class="alert ${f.code === 'CI' ? 'ci' : 'asdec'}">
+        <span class="lvl">${esc(f.niveau)}</span>
+        <p class="pair"><strong>${lab(f.itemA)}</strong> + <strong>${lab(f.itemB)}</strong></p>
+        <p class="hint">${cap(f.entA)} + ${cap(f.entB)}</p>
+        <details><summary>Détail du thésaurus</summary><p class="txt">${esc(f.texte)}</p></details>
+        <label class="check"><input type="checkbox" data-alert="${esc(f.id)}"${S.alertsOff.has(f.id) ? '' : ' checked'}> Reprendre dans le compte rendu</label>
+      </div>`).join('')
+      + '<p class="hint">Seules les contre-indications et associations déconseillées sont recherchées. Le thésaurus ne remplace pas le RCP.</p>';
+  }
+  function onAlertChange(e) {
+    const id = e.target.dataset && e.target.dataset.alert;
+    if (!id) return;
+    if (e.target.checked) S.alertsOff.delete(id); else S.alertsOff.add(id);
   }
   function rematch(it) {
     const m = E.matchDrug(S.idx, it.nom, '');
@@ -489,7 +542,11 @@
       const now = new Date();
       const buf = await (await fetch('modele/Modele_plan_de_prise.docx')).arrayBuffer();
       const doc = new window.docxtemplater(new window.PizZip(buf), { paragraphLoop: true, linebreaks: true });
-      doc.render(C.planDataFromItems(S.items, now.toLocaleDateString('fr-FR')));
+      const data = C.planDataFromItems(S.items, now.toLocaleDateString('fr-FR'));
+      const alerts = S.base ? AN.analyse(S.base, S.items) : [];
+      data.analyse = alerts.filter((f) => !S.alertsOff.has(f.id)).map(AN.reportRow);
+      data.vides = Array.from({ length: Math.max(1, 3 - data.analyse.length) }, () => ({})); // lignes libres pour compléter à la main
+      doc.render(data);
       S.lastBlob = doc.getZip().generate({ type: 'blob', mimeType: DOCX_MIME });
       const p2 = (n) => String(n).padStart(2, '0');
       S.lastName = `Plan_de_prise_${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}_${p2(now.getHours())}${p2(now.getMinutes())}.docx`;
@@ -517,7 +574,7 @@
 
   function endSession() {
     if (!window.confirm('Effacer le plan en cours ? Les lignes non générées seront perdues.')) return;
-    S.items = []; S.remarks = []; S.pages = 0; S.lastBlob = null; S.lastName = '';
+    S.items = []; S.remarks = []; S.pages = 0; S.lastBlob = null; S.lastName = ''; S.alerts = []; S.alertsOff.clear();
     discardPhoto();
     show('home');
   }
@@ -594,6 +651,7 @@
       <p>Version de l’application : <strong>${APP_VERSION}</strong></p>
       <p>Base BDPM : <strong>${S.idx ? S.idx.products.length.toLocaleString('fr-FR') : '—'}</strong> spécialités (extraction du ${esc(S.idx ? S.idx.version : '—')})</p>
       <p>Table de correspondance : <strong>${S.table.rows.length}</strong> entrées (stockage protégé : ${persisted})</p>
+      <p>Thésaurus des interactions : <strong>${S.base ? S.base.count.toLocaleString('fr-FR') + ' associations (CI et déconseillées), ANSM sept. 2023' : '—'}</strong></p>
       <p>Lecture hors ligne : <strong>${S.offlineReady ? 'prête' : 'en préparation'}</strong></p>`;
   }
   async function checkUpdate() {
@@ -648,6 +706,7 @@
       d.returnValue = '';
     });
     $('#rev-generate').addEventListener('click', generate);
+    $('#analyse').addEventListener('change', onAlertChange);
 
     $('#res-share').addEventListener('click', () => S.lastBlob && shareBlob(S.lastBlob, S.lastName, DOCX_MIME, 'Plan de prise'));
     $('#res-download').addEventListener('click', () => S.lastBlob && downloadBlob(S.lastBlob, S.lastName));
@@ -666,6 +725,6 @@
     boot();
   }
 
-  window.__ordo = { S, E, C, ingestText, generate, show, renderReview, addManual, toUi, rematch, saveTable };
+  window.__ordo = { S, E, C, AN, renderAnalyse, ingestText, generate, show, renderReview, addManual, toUi, rematch, saveTable };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
